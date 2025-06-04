@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peta Kuliner Ponorogo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <style>
+    body { font-family: 'Poppins', sans-serif; margin: 0; }
+    #map { position: absolute; top: 3.5rem; left: 0; right: 0; bottom: 0; z-index: 0; }
+    .leaflet-popup-content-wrapper { font-size: 0.9rem; }
+    .sidebar {
+      position: absolute;
+      top: 3.5rem;
+      left: 0;
+      bottom: 0;
+      width: 300px;
+      z-index: 999;
+      background: white;
+      padding: 1rem;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar.collapsed { transform: translateX(-100%); }
+    .topbar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3.5rem;
+      background: #1f2937;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+      font-size: 1.2rem;
+      font-weight: 600;
+      z-index: 1000;
+    }
+    .alert-box {
+      position: absolute;
+      top: 4rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: white;
+      border-radius: 0.75rem;
+      padding: 1rem 2rem;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      font-size: 0.95rem;
+    }
+    .sidebar-footer {
+      position: sticky;
+      bottom: 0;
+      background: white;
+      padding-top: 0.5rem;
+      margin-top: auto;
+      border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    #directionPanel {
+      position: fixed;
+      top: 4.5rem;
+      right: 1rem;
+      width: 300px;
+      max-height: 70vh;
+      overflow-y: auto;
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      z-index: 999;
+      font-size: 0.9rem;
+      display: none;
+    }
+    #directionPanel ul li::before {
+      content: "-";
+      margin-right: 0.4rem;
+    }
+    #directionPanel .close-btn {
+      position: absolute;
+      top: 0.3rem;
+      right: 0.7rem;
+      background: #f87171;
+      color: white;
+      border: none;
+      padding: 0.1rem 0.5rem;
+      font-size: 0.8rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+    @media (max-width: 768px) {
+      .sidebar { width: 100%; height: 100%; top: 3.5rem; }
+      .topbar { font-size: 1rem; }
+      #directionPanel { width: 90%; right: 5%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <span>Aplikasi Webmap Tempat Kuliner Ponorogo</span>
+    <button onclick="toggleSidebar()" class="bg-white text-black px-3 py-1 rounded text-sm">≡</button>
+  </div>
+  <div id="map"></div>
+  <div id="sidebar" class="sidebar text-sm">
+    <div class="font-semibold text-base mb-2">👋 Halo, Selamat datang!</div>
+    <input type="text" id="searchInput" class="w-full border p-1 rounded mb-3" placeholder="Cari nama kuliner...">
+    <button onclick="applyFilters()" class="bg-blue-600 text-white px-3 py-1 rounded mb-3 text-sm">🔍 Cari Makan</button>
+    <div class="mb-2">
+      <label class="text-xs">Radius Buffer (meter):</label>
+      <input type="range" id="bufferRadius" min="100" max="2000" step="100" value="500" class="w-full">
+      <small class="text-xs">Radius: <span id="bufferVal">500</span> meter</small>
+    </div>
+    <div class="border-t border-gray-300 my-2"></div>
+    <div class="grid grid-cols-2 gap-2">
+      <button onclick="resetRoute(); showAlert('Rute telah dihapus')" class="bg-red-500 text-white px-2 py-2 rounded flex items-center gap-1 justify-center">❌ Rute</button>
+      <button onclick="toggleMapTheme(); showAlert('Tema telah diubah')" class="bg-gray-800 text-white px-2 py-2 rounded flex items-center gap-1 justify-center">🌓 Tema</button>
+      <button onclick="toggleSatellite(); showAlert('Peta satelit telah aktif')" class="bg-yellow-600 text-white px-2 py-2 rounded flex items-center gap-1 justify-center">🗺️ Satelit</button>
+      <button onclick="toggleHeatmap(); showAlert('Tampilan heatmap diubah')" class="bg-indigo-600 text-white px-2 py-2 rounded flex items-center gap-1 justify-center">🔥 Heatmap</button>
+    </div>
+    <div class="border-t mt-4 pt-2 font-semibold text-sm">🍽️ Rekomendasi Kuliner</div>
+    <div id="sidebarList" class="space-y-2 mt-2 overflow-y-auto"></div>
+    <div class="sidebar-footer">&copy; 2025 Octaa</div>
+  </div>
+  <div id="alertBox" class="alert-box hidden"></div>
+  <div id="directionPanel">
+    <button class="close-btn" onclick="hideTurnByTurnInstructions()">Tutup</button>
+    <div class="font-semibold mb-2">📍 Petunjuk Arah</div>
+    <div id="distanceTimeInfo" class="text-xs mb-2 text-gray-700"></div>
+    <ul id="directionList" class=" pl-5 text-xs"></ul>
+  </div>
+
+
+
+  
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.min.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script>
+    let mapTheme = 'light';
+    let isSatellite = false;
+    let tileLayer, heatmapLayer, heatmapVisible = true;
+    let userMarker, bufferCircle, routingControl;
+    const kulinerMarkers = [];
+    const map = L.map('map').setView([-7.8718, 111.4703], 16);
+    const directionPanel = document.getElementById('directionPanel');
+    const directionList = document.getElementById('directionList');
+
+    function showTurnByTurnInstructions(instructions) {
+      directionList.innerHTML = '';
+      instructions.forEach(i => {
+        const li = document.createElement('li');
+        li.textContent = i.text;
+        directionList.appendChild(li);
+      });
+      directionPanel.style.display = 'block';
+    }
+
+    function hideTurnByTurnInstructions() {
+      directionPanel.style.display = 'none';
+    }
+
+    function showAlert(text) {
+      const alertBox = document.getElementById('alertBox');
+      alertBox.textContent = text;
+      alertBox.classList.remove('hidden');
+      setTimeout(() => alertBox.classList.add('hidden'), 3000);
+    }
+
+    function setMapTheme(theme, satellite = false) {
+      if (tileLayer) map.removeLayer(tileLayer);
+      tileLayer = satellite
+        ? L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { subdomains: ['mt0','mt1','mt2','mt3'] })
+        : L.tileLayer(theme === 'dark'
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' });
+      tileLayer.addTo(map);
+    }
+    setMapTheme(mapTheme);
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('collapsed');
+    }
+    function toggleMapTheme() {
+      isSatellite = false;
+      mapTheme = mapTheme === 'light' ? 'dark' : 'light';
+      setMapTheme(mapTheme);
+    }
+    function toggleSatellite() {
+      isSatellite = !isSatellite;
+      setMapTheme(mapTheme, isSatellite);
+    }
+    function toggleHeatmap() {
+      if (heatmapVisible) { map.removeLayer(heatmapLayer); heatmapVisible = false; }
+      else { map.addLayer(heatmapLayer); heatmapVisible = true; }
+    }
+
+    function resetRoute() {
+      if (routingControl) map.removeControl(routingControl);
+      hideTurnByTurnInstructions();
+    }
+
+    function runRouting(lat, lon, travelMode = 'driving') {
+      if (!userMarker) return alert("Tunggu lokasi Anda terdeteksi dulu.");
+      if (routingControl) map.removeControl(routingControl);
+      routingControl = L.Routing.control({
+        waypoints: [userMarker.getLatLng(), L.latLng(lat, lon)],
+        router: L.Routing.osrmv1({ profile: travelMode }),
+        routeWhileDragging: false,
+        show: false,
+        createMarker: () => null,
+      })
+      .on('routesfound', function(e) {
+        const route = e.routes[0];
+        const d = route.summary.totalDistance;
+        const t = route.summary.totalTime;
+        const jarak = d > 1000 ? `${(d/1000).toFixed(2)} km` : `${Math.round(d)} m`;
+        const waktu = `${(t/60).toFixed(1)} menit`;
+        showAlert(`Jarak: ${jarak} | Waktu: ${waktu}`);
+        showTurnByTurnInstructions(route.instructions);
+      })
+      .addTo(map);
+    }
+
+    function applyFilters() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = kulinerMarkers.filter(k => k.name.toLowerCase().includes(keyword));
+      const container = document.getElementById('sidebarList');
+      container.innerHTML = '';
+      filtered.forEach((k, i) => {
+        const jarak = k.distance >= 1000 ? `${(k.distance / 1000).toFixed(2)} km` : `${Math.round(k.distance)} m`;
+        const div = document.createElement('div');
+        div.className = "border p-2 rounded hover:bg-gray-100 text-sm";
+        div.innerHTML = `
+          <div class="font-medium text-sm">🍽️ ${k.name}</div>
+          <div class="text-xs">⭐ ${k.rating} | 📏 ${jarak}</div>
+          <button class="text-blue-500 underline text-xs mt-1" onclick="runRouting(${k.lat}, ${k.lon})">Arahkan</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    fetch('https://raw.githubusercontent.com/sgtadwiii/tempatkuliner-json/main/TempatkulinerV2.json')
+      .then(res => res.json())
+      .then(data => {
+        const heatData = [];
+        data.features.forEach((d) => {
+          const lat = d.geometry.coordinates[1];
+          const lon = d.geometry.coordinates[0];
+          const props = d.properties;
+
+          const popupContent = document.createElement('div');
+          popupContent.className = 'text-sm';
+          popupContent.innerHTML = `
+            <div class='font-semibold text-base mb-1'>🍽️ ${props.Name}</div>
+            <div class='mb-1 text-gray-700'>📍 ${props.Alamat_Len || '-'}</div>
+            <div class='text-xs'>⭐ ${props.Rating}</div>
+          `;
+
+          const select = document.createElement('select');
+          select.className = 'w-full border rounded p-1 mt-2 text-xs';
+          ['driving', 'foot', 'bike'].forEach(mode => {
+            const option = document.createElement('option');
+            option.value = mode;
+            option.textContent = mode === 'driving' ? '🚗 Mobil' : mode === 'foot' ? '🚶 Jalan Kaki' : '🚴 Sepeda';
+            select.appendChild(option);
+          });
+
+          const button = document.createElement('button');
+          button.className = 'mt-2 bg-blue-600 text-white px-3 py-1 rounded text-xs w-full';
+          button.textContent = 'Tunjukkan Rute';
+          button.onclick = () => runRouting(lat, lon, select.value);
+
+          popupContent.appendChild(select);
+          popupContent.appendChild(button);
+
+          const marker = L.marker([lat, lon], {
+            icon: L.icon({ iconUrl: 'asset/logomarker.png', iconSize: [32, 32], iconAnchor: [16, 32] })
+          }).addTo(map)
+            .bindPopup(popupContent)
+            .bindTooltip(props.Name, { direction: 'top', offset: [0, -30] });
+
+          kulinerMarkers.push({ marker, name: props.Name, rating: parseFloat(props.Rating), lat, lon });
+          heatData.push([lat, lon, 0.6]);
+        });
+        heatmapLayer = L.heatLayer(heatData, {radius: 25, blur: 15}).addTo(map);
+      });
+
+    map.locate({setView: true, maxZoom: 17, watch: true});
+    map.on('locationfound', onLocationFound);
+
+    function onLocationFound(e) {
+      const bufferVal = parseFloat(document.getElementById('bufferRadius').value) || 500;
+      document.getElementById('bufferVal').textContent = bufferVal;
+      if (userMarker) map.removeLayer(userMarker);
+      if (bufferCircle) map.removeLayer(bufferCircle);
+      userMarker = L.marker(e.latlng).addTo(map).bindPopup("Lokasi Anda Saat Ini").openPopup();
+      bufferCircle = L.circle(e.latlng, {radius: bufferVal, color: 'blue', fillOpacity: 0.2}).addTo(map);
+      updateNearestPlaces(e.latlng);
+    }
+
+    function updateNearestPlaces(userLatLng) {
+      kulinerMarkers.forEach(k => k.distance = map.distance(userLatLng, L.latLng(k.lat, k.lon)));
+      applyFilters();
+    }
+  </script>
+</body>
+</html>
