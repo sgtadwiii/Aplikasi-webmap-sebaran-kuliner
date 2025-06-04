@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Peta Kuliner Ponorogo</title>
+  <title>Peta Sebaran Kuliner</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -110,9 +110,9 @@
   </div>
   <div id="map"></div>
   <div id="sidebar" class="sidebar text-sm">
-    <div class="font-semibold text-base mb-2">👋 Halo, Selamat datang!</div>
-    <input type="text" id="searchInput" class="w-full border p-1 rounded mb-3" placeholder="Cari nama kuliner...">
-    <button onclick="applyFilters()" class="bg-blue-600 text-white px-3 py-1 rounded mb-3 text-sm">🔍 Cari Makan</button>
+    <div class="font-semibold text-base mb-2">Halo, Selamat datang!</div>
+    <input type="text" id="searchInput" class="w-full border p-1 rounded mb-3" placeholder="Mau Makan Apaa ?...">
+    <button onclick="applyFilters()" class="bg-blue-600 text-white px-3 py-1 rounded mb-3 text-sm">🔍 Cari Nama Kuliner</button>
     <div class="mb-2">
       <label class="text-xs">Radius Buffer (meter):</label>
       <input type="range" id="bufferRadius" min="100" max="2000" step="100" value="500" class="w-full">
@@ -125,7 +125,7 @@
       <button onclick="toggleSatellite(); showAlert('Peta satelit telah aktif')" class="bg-yellow-600 text-white px-2 py-2 rounded flex items-center gap-1 justify-center">🗺️ Satelit</button>
       <button onclick="toggleHeatmap(); showAlert('Tampilan heatmap diubah')" class="bg-indigo-600 text-white px-2 py-2 rounded flex items-center gap-1 justify-center">🔥 Heatmap</button>
     </div>
-    <div class="border-t mt-4 pt-2 font-semibold text-sm">🍽️ Rekomendasi Kuliner</div>
+    <div class="border-t mt-4 pt-2 font-semibold text-sm">Rekomendasi Kuliner</div>
     <div id="sidebarList" class="space-y-2 mt-2 overflow-y-auto"></div>
     <div class="sidebar-footer">&copy; 2025 Octaa</div>
   </div>
